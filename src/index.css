@@ -1,0 +1,49 @@
+.custom-tabs .nav-item {
+    margin-right: 8px;
+}
+  
+.custom-tabs .nav-link {
+    background-color: #343a40; 
+    color: white !important;
+    transition: background-color 0.3s ease;
+}
+
+.custom-tabs .nav-link:hover {
+    background-color: #495057;
+    color: white;
+}
+
+.custom-tabs .nav-link.active {
+    background-color: #0d6efd !important; 
+    color: white !important;
+}
+
+.fc-timegrid-slot {
+    height: 4em !important;
+}
+
+.fc .badge {
+    padding: 0.25em 0.5em;
+    font-size: 0.75rem;
+    border-radius: 0.4em;
+}
+  
+.fc .fc-timegrid-col.fc-day-today {
+    background-color: #002d72 !important;
+}
+
+.fc .fc-timegrid-col.fc-day-today .fc-col-header-cell-cushion {
+    color: #fff !important;
+}
+
+.fc-event.available-slot:hover {
+    cursor: pointer;
+    filter: brightness(90%);
+    box-shadow: 0 0 0.25rem #28a745;
+}
+
+.fc .fc-toolbar-title {
+    color: white !important;
+}
+  
+  
