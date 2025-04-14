@@ -29,7 +29,7 @@ function Layout() {
   };
 
   return (
-    <div className="App bg-dark text-light min-vh-100">
+    <div className="min-vh-100">
       <Row>
         <Col md={2}>
           {currentUser && <SideBar handleLogout={handleLogout}/>}

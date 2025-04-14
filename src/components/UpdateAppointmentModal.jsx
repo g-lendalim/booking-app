@@ -80,17 +80,6 @@ export default function UpdateAppointmentModal({
             />
           </Form.Group>
 
-          {(currentUser.role === "doctor" || currentUser.role === "admin") && (
-            <Form.Group>
-              <Form.Label>Patient UID</Form.Label>
-              <Form.Control
-                type="text"
-                value={patientUid}
-                onChange={(e) => setPatientUid(e.target.value)}
-              />
-            </Form.Group>
-          )}
-
           <Form.Group>
             <Form.Label>Doctor</Form.Label>
             <Form.Control type="text" value={doctorName} disabled />

@@ -45,25 +45,40 @@ export default function ProfilePage() {
               <div className="text-center mb-4">
                 <div className="profile-pic-container mb-3">
                   <img
-                    src={userData.profilePictureUrl || 'default-profile-pic.jpg'} // Fallback image
+                    src={userData.profilePictureUrl} 
                     alt="Profile"
                     className="rounded-circle"
                     style={{ width: 150, height: 150, objectFit: 'cover' }}
                   />
                 </div>
-                <h2>{userData.fullName}</h2>
+                <h2 className="fw-bold">{userData.fullName}</h2>
+                <p className="text-muted">{userData.role}</p>
               </div>
 
               {/* Profile Information */}
               <div className="profile-info mb-4">
-                <p><strong>Full Name:</strong> {userData.fullName}</p>
-                <p><strong>IC Number:</strong> {userData.icNumber}</p>
-                <p><strong>Date of Birth:</strong> {userData.icNumber}</p>
+                <Row className="mb-3">
+                  <Col sm={4} className="fw-bold">Full Name:</Col>
+                  <Col sm={8}>{userData.fullName}</Col>
+                </Row>
+                <Row className="mb-3">
+                  <Col sm={4} className="fw-bold">IC Number:</Col>
+                  <Col sm={8}>{userData.icNumber}</Col>
+                </Row>
                 {userData.role === 'doctor' && (
-                  <p><strong>Registration Number:</strong> {userData.registrationNumber}</p>
+                  <Row className="mb-3">
+                    <Col sm={4} className="fw-bold">Registration Number:</Col>
+                    <Col sm={8}>{userData.registrationNumber}</Col>
+                  </Row>
                 )}
-                <p><strong>Contact Number:</strong> {userData.contactNumber}</p>
-                <p><strong>Email:</strong> {userData.email}</p>
+                <Row className="mb-3">
+                  <Col sm={4} className="fw-bold">Contact Number:</Col>
+                  <Col sm={8}>{userData.contactNumber}</Col>
+                </Row>
+                <Row className="mb-3">
+                  <Col sm={4} className="fw-bold">Email:</Col>
+                  <Col sm={8}>{userData.email}</Col>
+                </Row>
               </div>
 
               {/* Edit Profile Button */}
@@ -71,7 +86,7 @@ export default function ProfilePage() {
                 <Button
                   variant="primary"
                   onClick={() => navigate(`/edit-profile/${currentUser.uid}`)}
-                  className="rounded-pill p-3"
+                  className="rounded-pill px-4 py-2"
                 >
                   Edit Profile
                 </Button>

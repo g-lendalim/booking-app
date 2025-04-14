@@ -96,7 +96,7 @@ export default function Homepage() {
       {loading && <div className="text-center">Loading appointments...</div>}
       {error && <div className="text-danger text-center">Error: {error}</div>}
 
-      <div className="text-center mb-4">
+      <div className="text-center mb-5">
         <h2 className="fw-bold">Appointments</h2>
       </div>
 
@@ -113,7 +113,7 @@ export default function Homepage() {
       {(currentUser.role === "admin" || currentUser.role === "doctor") && (
         <div className="table-responsive">
           <Table striped bordered hover responsive className="text-center align-middle">
-            <thead className="table-dark">
+            <thead className="table-light">
               <tr>
                 <th>Title</th>
                 <th>Doctor</th>
@@ -138,14 +138,14 @@ export default function Homepage() {
                     <td>{appointment.notes || "No notes"}</td>
                     <td>
                       <Button
-                        variant="warning"
-                        className="me-2 text-dark"
+                        variant="outline-warning"
+                        className="me-2"
                         onClick={() => handleEdit(appointment)}
                       >
                         Edit
                       </Button>
                       <Button
-                        variant="danger"
+                        variant="outline-danger"
                         onClick={() => {
                           setSelectedAppointment(appointment);
                           setModalType("delete");
@@ -199,8 +199,8 @@ export default function Homepage() {
 
                     <div className="d-flex justify-content-between pt-2">
                       <Button
-                        variant="warning"
-                        className="text-dark w-50 me-2"
+                        variant="outline-warning"
+                        className="w-50 me-2"
                         onClick={() => {
                           setSelectedAppointment(appointment);
                           setModalType("update");
@@ -209,7 +209,7 @@ export default function Homepage() {
                         Edit
                       </Button>
                       <Button
-                        variant="danger"
+                        variant="outline-danger"
                         className="w-50"
                         onClick={() => {
                           setSelectedAppointment(appointment);

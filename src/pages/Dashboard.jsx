@@ -1,10 +1,10 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AuthContext } from '../components/AuthProvider';
 import {
   fetchAvailableSlots,
-  fetchAppointments, 
-  addAppointment
+  fetchAppointments,
+  addAppointment,
 } from "../features/appointments/appointmentSlice";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -15,21 +15,36 @@ import moment from "moment";
 
 export default function Dashboard() {
   const dispatch = useDispatch();
-  const { loading, error, availableSlots, appointments } = useSelector((state) => state.appointments);
   const { currentUser } = useContext(AuthContext);
-  const userId = currentUser?.uid;
-  const role = currentUser?.role;
+  const { loading, error, availableSlots, appointments } = useSelector((state) => state.appointments);
 
   const [modalShow, setModalShow] = useState(false);
   const [appointment, setAppointment] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
 
+  const userId = currentUser?.uid;
+  const role = currentUser?.role;
+
   useEffect(() => {
-    if (currentUser) {
-      dispatch(fetchAvailableSlots());
-      dispatch(fetchAppointments());
-    }
-  }, [dispatch, currentUser]);
+    if (!userId) return;
+
+    const fetchData = async () => {
+      try {
+        await dispatch(fetchAvailableSlots());
+        await dispatch(fetchAppointments());
+      } catch (err) {
+        console.error("Error fetching slots/appointments:", err);
+      }
+    };
+
+    fetchData();
+  }, [dispatch, userId]);
+
+  const normalizeTime = (date) => {
+    const d = new Date(date);
+    d.setSeconds(0, 0);
+    return d;
+  };
 
   const splitSlotIntoHalfHours = (slot, doctorName, doctorUid) => {
     const intervals = [];
@@ -37,10 +52,10 @@ export default function Dashboard() {
     const endTime = moment(slot.end);
 
     while (current < endTime) {
-      const next = moment(current).add(30, "minutes");
+      const next = moment.min(moment(current).add(30, "minutes"), endTime);
       intervals.push({
-        id: `slot-${doctorUid}-${current.format("HHmm")}`,
-        title: `${doctorName}`,
+        id: `slot-${doctorUid}-${current.format("YYYYMMDD-HHmm")}`,
+        title: doctorName,
         start: current.toDate(),
         end: next.toDate(),
         color: "#28a745",
@@ -52,61 +67,58 @@ export default function Dashboard() {
       });
       current = next;
     }
+
     return intervals;
   };
 
-  function normalizeTime(date) {
-    const d = new Date(date);
-    d.setSeconds(0, 0);
-    return d;
-  }  
+  const slotEventsFiltered = useMemo(() => {
+    if (!availableSlots?.length) return [];
 
-  // Format appointment events correctly with precise time
-  const appointmentEvents = appointments.map((appt) => {
-    const start = moment(appt.start).toDate();
-    const end = moment(appt.end).toDate();
-    return {
+    const rawSlots = availableSlots.flatMap(doc =>
+      doc.slots.flatMap(slot =>
+        splitSlotIntoHalfHours(
+          { start: new Date(slot.start), end: new Date(slot.end) },
+          slot.doctorName,
+          doc.id
+        )
+      )
+    );
+
+    return rawSlots.filter((slot) => {
+      const slotStart = normalizeTime(slot.start);
+      const slotEnd = normalizeTime(slot.end);
+      const doctorUid = slot.extendedProps.doctorUid;
+
+      const isOverlapping = appointments.some(app => {
+        const appStart = normalizeTime(app.start);
+        const appEnd = normalizeTime(app.end);
+        return (
+          app.doctorUid === doctorUid &&
+          slotStart < appEnd &&
+          slotEnd > appStart
+        );
+      });
+
+      return !isOverlapping;
+    });
+  }, [availableSlots, appointments]);
+
+  const events = useMemo(() => {
+    const appointmentEvents = appointments.map((appt) => ({
       id: appt.id,
       title: appt.doctorName || "Appointment",
-      start: start,
-      end: end,
-      color: "#808080", 
+      start: new Date(appt.start),
+      end: new Date(appt.end),
+      color: "#808080",
       extendedProps: {
         ...appt,
         isAvailableSlot: false,
         patientName: appt.patientName || "Patient",
       },
-    };
-  });
+    }));
 
-  const slotEvents = availableSlots.flatMap((doc) =>
-    doc.slots.flatMap((slot) =>
-      splitSlotIntoHalfHours(slot, slot.doctorName, doc.id)
-    )
-  );
-
-  // Filter out slots that overlap with booked appointments
-  const slotEventsFiltered = slotEvents.filter((slot) => {
-    const slotStart = normalizeTime(slot.start);
-    const slotEnd = normalizeTime(slot.end);
-    const doctorUid = slot.extendedProps.doctorUid || slot.doctorUid;
-
-    const isOverlapping = appointments.some((app) => {
-      const appStart = normalizeTime(app.start);
-      const appEnd = normalizeTime(app.end);
-
-      return (
-        app.doctorUid === doctorUid &&
-        ((slotStart >= appStart && slotStart < appEnd) || 
-         (slotEnd > appStart && slotEnd <= appEnd) ||
-         (slotStart <= appStart && slotEnd >= appEnd))
-      );
-    });
-
-    return !isOverlapping;
-  });
-
-  const events = [...slotEventsFiltered, ...appointmentEvents];
+    return [...slotEventsFiltered, ...appointmentEvents];
+  }, [appointments, slotEventsFiltered]);
 
   const handleEventClick = ({ event }) => {
     const { isAvailableSlot, doctorUid } = event.extendedProps;
@@ -125,6 +137,22 @@ export default function Dashboard() {
     }
   };
 
+  const handleModalConfirm = async (appointmentDetails) => {
+    if (!appointmentDetails.start || !appointmentDetails.end) {
+      console.error("Start time or End time is missing.");
+      return;
+    }
+
+    try {
+      await dispatch(addAppointment(appointmentDetails));
+      setModalShow(false);
+      await dispatch(fetchAppointments());
+      await dispatch(fetchAvailableSlots());
+    } catch (error) {
+      console.error("Failed to add appointment:", error);
+    }
+  };
+
   const handleDateAndTimeSelect = (selection) => {
     setSelectedSlot({
       start: selection.startStr,
@@ -134,45 +162,40 @@ export default function Dashboard() {
     setModalShow(true);
   };
 
-  const handleModalConfirm = async (appointmentDetails) => {
-    if (!appointmentDetails.start || !appointmentDetails.end) {
-      console.error("Start time or End time is missing.");
-      return;
-    }
-
-    try {
-      await dispatch(addAppointment(appointmentDetails));
-      setTimeout(() => {
-        dispatch(fetchAppointments());
-      }, 500);
-      setModalShow(false);
-    } catch (error) {
-      console.error("Failed to add appointment:", error);
-    }
-  };
+  if (!currentUser || loading) {
+    return <div className="text-center text-white py-5">Loading...</div>;
+  }
 
   return (
-    <div className="bg-dark text-white py-5 min-vh-100">
-      <div className="container-fluid px-5">
-        <div className="row justify-content-center">
-          <div className="col-12">
-            <p className="fs-4 text-center mb-4">
-              To book an appointment, simply <strong>click on a</strong> <span className="text-success fw-bold">green</span> time slot below.
-            </p>
+    <div className="dashboard-container min-vh-100 bg-light">
+      <div className="header-section py-4 bg-white shadow-sm">
+        <div className="container-fluid px-5">
+          <h1 className="display-6 mb-2 fw-bold">Dashboard</h1>
+        </div>
+      </div>
 
-            {error && <div className="alert alert-danger text-center">{error}</div>}
+      <div className="content-section py-4">
+        <div className="container-fluid px-5">
+          <div className="row justify-content-center">
+            <div className="col-12">
+              <div className="alert alert-info border-0 rounded-4 bg-white shadow-sm mb-4">
+                <div className="d-flex align-items-center">
+                  <i className="bi bi-info-circle-fill me-2"></i>
+                  <p className="mb-0">
+                    To book an appointment, click on a <span className="badge bg-success">green</span> time slot below
+                  </p>
+                </div>
+              </div>
 
-            {loading ? (
-              <div className="text-center">Loading...</div>
-            ) : (
-              <div className="card bg-dark border-0 shadow-lg rounded-4">
+              {error && <div className="alert alert-danger border-0 rounded-4 shadow-sm">{error}</div>}
+
+              <div className="card border-0 rounded-4 shadow">
                 <div className="card-body p-4" style={{ overflowY: "auto" }}>
-                <FullCalendar
+                  <FullCalendar
                     plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
                     initialView="timeGridWeek"
-                    initialDate={new Date()}
                     events={events}
-                    selectable={true}
+                    selectable
                     editable={role === "doctor" || role === "admin"}
                     eventClick={handleEventClick}
                     select={role !== "patient" ? handleDateAndTimeSelect : null}
@@ -182,30 +205,25 @@ export default function Dashboard() {
                     headerToolbar={{
                       left: 'prev,next today',
                       center: 'title',
-                      right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                    }}                
+                      right: 'dayGridMonth,timeGridWeek,timeGridDay',
+                    }}
                     dayHeaderFormat={{ weekday: 'long', day: 'numeric' }}
-                    dayHeaderClassNames="bg-dark text-white"
                     dayCellClassNames={(arg) => {
                       const today = moment().format("YYYY-MM-DD");
-                      if (arg.dateStr === today) return ["current-day-highlight"];
-                      return [];
+                      return arg.dateStr === today ? ["current-day-highlight"] : [];
                     }}
-                    eventContent={(eventInfo) => {
-                      const { patientName, isAvailableSlot } = eventInfo.event.extendedProps;
-                      const isAvailable = isAvailableSlot;
-                      const start = moment(eventInfo.event.start).format("h:mm A");
-                      const end = moment(eventInfo.event.end).format("h:mm A");
+                    eventContent={({ event }) => {
+                      const { patientName, isAvailableSlot } = event.extendedProps;
+                      const start = moment(event.start).format("h:mm A");
+                      const end = moment(event.end).format("h:mm A");
 
                       return (
                         <div style={{ fontSize: "0.85rem", lineHeight: "1.3" }}>
                           <div className="d-flex flex-column text-center">
-                            <strong>{eventInfo.event.title.split("\n")[0]}</strong>
-                            <span style={{ fontSize: "0.75rem" }}>
-                              {start} - {end}
-                            </span>
-                            <span className={`badge ${isAvailable ? 'bg-success' : 'bg-secondary'} mt-1`}>
-                              {isAvailable ? 'Available' : `Booked${patientName ? ` - ${patientName}` : ''}`}
+                            <strong>{event.title}</strong>
+                            <span style={{ fontSize: "0.75rem" }}>{start} - {end}</span>
+                            <span className={`badge ${isAvailableSlot ? 'bg-success' : 'bg-secondary'} mt-1`}>
+                              {isAvailableSlot ? 'Available' : `Booked${patientName ? ` - ${patientName}` : ''}`}
                             </span>
                           </div>
                         </div>
@@ -216,24 +234,24 @@ export default function Dashboard() {
                       minute: '2-digit',
                       meridiem: 'short',
                     }}
-                    eventClassNames={(arg) => {
-                      return arg.event.extendedProps.isAvailableSlot ? ['available-slot', 'cursor-pointer'] : [];
-                    }}
+                    eventClassNames={({ event }) =>
+                      event.extendedProps.isAvailableSlot ? ['available-slot', 'cursor-pointer'] : []
+                    }
                   />
                 </div>
               </div>
-            )}
 
-            <NewAppointmentModal
-              show={modalShow}
-              handleClose={() => setModalShow(false)}
-              appointment={appointment || { start: "", end: "", doctorName: "" }}
-              selectedSlot={selectedSlot || { start: "", end: "" }}
-              onConfirm={handleModalConfirm}
-              currentUser={currentUser}
-              availableSlots={slotEventsFiltered}
-              size="lg"
-            />
+              <NewAppointmentModal
+                show={modalShow}
+                handleClose={() => setModalShow(false)}
+                appointment={appointment || { start: "", end: "", doctorName: "" }}
+                selectedSlot={selectedSlot || { start: "", end: "" }}
+                onConfirm={handleModalConfirm}
+                currentUser={currentUser}
+                availableSlots={slotEventsFiltered}
+                size="lg"
+              />
+            </div>
           </div>
         </div>
       </div>
