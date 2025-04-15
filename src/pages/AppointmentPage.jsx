@@ -17,6 +17,7 @@ export default function AppointmentPage() {
   const [modalType, setModalType] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [activeTab, setActiveTab] = useState("upcoming");
+  const [sortDirection, setSortDirection] = useState("asc"); 
 
   const { appointments = [], error, loading, availableSlots } = useSelector(
     (state) => state.appointments
@@ -89,6 +90,14 @@ export default function AppointmentPage() {
       appointment.doctorUid?.trim() === currentUser.uid;
   
     return matchUser && matchDate;
+  });
+  
+  const sortedAppointments = [...filteredAppointments].sort((a, b) => {
+    const dateA = new Date(a.start);
+    const dateB = new Date(b.start);
+    return sortDirection === "asc"
+      ? dateA - dateB
+      : dateB - dateA;
   });  
 
   return (
@@ -110,6 +119,17 @@ export default function AppointmentPage() {
         <Tab eventKey="past" title="Past Appointments" />
       </Tabs>
 
+      {/* Sort Button */}
+      <div className="d-flex justify-content-end mb-3">
+        <Button
+          variant="outline-primary"
+          onClick={() => setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))}
+        >
+          <i className={`bi bi-sort-${sortDirection === "asc" ? "down" : "up"}`}></i>{" "}
+          Sort by Time
+        </Button>
+      </div>
+
       {(currentUser.role === "admin" || currentUser.role === "doctor") && (
         <div className="table-responsive">
           <Table striped bordered hover responsive className="text-center align-middle">
@@ -125,8 +145,8 @@ export default function AppointmentPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredAppointments.length > 0 ? (
-                filteredAppointments.map((appointment) => (
+              {sortedAppointments.length > 0 ? (
+                sortedAppointments.map((appointment) => (
                   <tr key={appointment.id}>
                     <td>{appointment.title || "Untitled"}</td>
                     <td>{appointment.doctorName || "Unknown"}</td>
@@ -168,8 +188,8 @@ export default function AppointmentPage() {
 
       {currentUser.role === "patient" && (
         <div className="row g-4">
-          {filteredAppointments.length > 0 ? (
-            filteredAppointments.map((appointment) => (
+          {sortedAppointments.length > 0 ? (
+            sortedAppointments.map((appointment) => (
               <div className="col-md-6 col-lg-4" key={appointment.id}>
                 <div className="card h-100 shadow-sm border-0">
                   <div className="card-body d-flex flex-column justify-content-between">
