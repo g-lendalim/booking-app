@@ -11,7 +11,7 @@ import { Button, Table, Badge, Tabs, Tab } from "react-bootstrap";
 import UpdateAppointmentModal from "../components/UpdateAppointmentModal";
 import DeleteAppointmentModal from "../components/DeleteAppointmentModal";
 
-export default function Homepage() {
+export default function AppointmentPage() {
   const dispatch = useDispatch();
   const { currentUser } = useContext(AuthContext);
   const [modalType, setModalType] = useState(null);
@@ -115,7 +115,7 @@ export default function Homepage() {
           <Table striped bordered hover responsive className="text-center align-middle">
             <thead className="table-light">
               <tr>
-                <th>Title</th>
+                <th>Purpose of Visit</th>
                 <th>Doctor</th>
                 <th>Patient</th>
                 <th>Time</th>

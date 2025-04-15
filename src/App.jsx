@@ -5,7 +5,7 @@ import AuthPage from './pages/AuthPage';
 import ProfilePage from './pages/ProfilePage';
 import EditProfilePage from './pages/EditProfilePage';
 import Dashboard from './pages/Dashboard';
-import HomePage from './pages/HomePage';
+import AppointmentPage from './pages/AppointmentPage';
 import { Provider } from 'react-redux';
 import store from './store';
 import { AuthProvider, AuthContext } from './components/AuthProvider';
@@ -36,7 +36,7 @@ function Layout() {
         </Col>
         <Col md={10}>
           <Routes>
-            <Route path="/home" element={<HomePage />} />
+            <Route path="/appointments" element={<AppointmentPage />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/edit-profile/:uid" element={<EditProfilePage />} />

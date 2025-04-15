@@ -23,7 +23,7 @@ export default function AuthPage() {
   const { currentUser } = useContext(AuthContext);
 
   useEffect(() => {
-    if (currentUser) navigate('/home');
+    if (currentUser) navigate('/appointments');
   }, [currentUser, navigate]);
 
   const checkUserExists = useCallback(async () => {

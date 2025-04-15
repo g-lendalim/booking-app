@@ -25,7 +25,7 @@ export default function SideBar({ handleLogout }) {
           onClick={() => navigate('/appointments')}
           className="nav-link"
         >
-          <i className="bi bi-house" /> Appointments
+          <i className="bi bi-calendar-event" /> Appointments
         </Nav.Link>
         <Nav.Link
           onClick={() => navigate('/profile')}
