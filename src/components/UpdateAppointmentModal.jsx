@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
 import moment from "moment";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "../firebase"; 
 
 export default function UpdateAppointmentModal({
   show,
@@ -17,6 +19,7 @@ export default function UpdateAppointmentModal({
   const [patientName, setPatientName] = useState("");
   const [doctorName, setDoctorName] = useState("");
   const [patientUid, setPatientUid] = useState("");
+  const [allPatients, setAllPatients] = useState([]);
 
   useEffect(() => {
     if (selectedAppointment) {
@@ -30,6 +33,26 @@ export default function UpdateAppointmentModal({
       setPatientUid(selectedAppointment.patientUid || "");
     }
   }, [selectedAppointment]);
+
+  useEffect(() => {
+      const fetchAllPatients = async () => {
+        if (currentUser.role === "doctor" || currentUser.role === "admin") {
+          try {
+            const q = query(collection(db, "users"), where("role", "==", "patient"));
+            const querySnapshot = await getDocs(q);
+            const patients = querySnapshot.docs.map(doc => ({
+              id: doc.id,
+              fullName: doc.data().fullName,
+            }));
+            setAllPatients(patients);
+          } catch (error) {
+            console.error("Error fetching patients:", error);
+          }
+        }
+      };
+    
+      fetchAllPatients();
+    }, [currentUser]);
 
   const handleConfirm = () => {
     if (!startTime || !endTime) {
@@ -62,7 +85,7 @@ export default function UpdateAppointmentModal({
       <Modal.Body>
         <Form>
           <Form.Group>
-            <Form.Label>Title</Form.Label>
+            <Form.Label>Purpose of Visit</Form.Label>
             <Form.Control
               type="text"
               value={title}
@@ -72,12 +95,30 @@ export default function UpdateAppointmentModal({
 
           <Form.Group>
             <Form.Label>Patient</Form.Label>
-            <Form.Control
-              type="text"
-              value={patientName}
-              onChange={(e) => setPatientName(e.target.value)}
-              disabled={currentUser.role === "patient"}
-            />
+            {currentUser.role === "doctor" || currentUser.role === "admin" ? (
+              <Form.Select
+                value={patientUid}
+                onChange={(e) => {
+                  const selected = allPatients.find(p => p.id === e.target.value);
+                  setPatientUid(selected.id);
+                  setPatientName(selected.fullName);
+                }}
+              >
+                <option value="">Select a patient</option>
+                {allPatients.map((patient) => (
+                  <option key={patient.id} value={patient.id}>
+                    {patient.fullName}
+                  </option>
+                ))}
+              </Form.Select>
+            ) : (
+              <Form.Control
+                type="text"
+                value={patientName}
+                onChange={(e) => setPatientName(e.target.value)}
+                disabled
+              />
+            )}
           </Form.Group>
 
           <Form.Group>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
 import moment from "moment";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "../firebase"; 
 
 export default function NewAppointmentModal({
   show,
@@ -18,6 +20,7 @@ export default function NewAppointmentModal({
   const [patientName, setPatientName] = useState("");
   const [doctorName, setDoctorName] = useState("");
   const [patientUid, setPatientUid] = useState("");
+  const [allPatients, setAllPatients] = useState([]);
 
   useEffect(() => {
     if (selectedSlot) {
@@ -29,10 +32,30 @@ export default function NewAppointmentModal({
         setPatientUid(currentUser.uid);
         setPatientName(currentUser.fullName || ""); 
       } else {
-        setPatientUid(currentUser.uid);
+        setPatientUid("");
       }
     }
   }, [selectedSlot, currentUser]);
+
+  useEffect(() => {
+    const fetchAllPatients = async () => {
+      if (currentUser.role === "doctor" || currentUser.role === "admin") {
+        try {
+          const q = query(collection(db, "users"), where("role", "==", "patient"));
+          const querySnapshot = await getDocs(q);
+          const patients = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            fullName: doc.data().fullName,
+          }));
+          setAllPatients(patients);
+        } catch (error) {
+          console.error("Error fetching patients:", error);
+        }
+      }
+    };
+  
+    fetchAllPatients();
+  }, [currentUser]);
   
   const handleConfirm = async () => {
     try {
@@ -78,7 +101,7 @@ export default function NewAppointmentModal({
       <Modal.Body>
         <Form>
           <Form.Group>
-            <Form.Label>Title</Form.Label>
+            <Form.Label>Purpose of Visit</Form.Label>
             <Form.Control
               type="text"
               value={title}
@@ -88,11 +111,30 @@ export default function NewAppointmentModal({
 
           <Form.Group>
             <Form.Label>Patient</Form.Label>
-            <Form.Control
-              type="text"
-              value={patientName}
-              onChange={(e) => setPatientName(e.target.value)}
-            />
+            {currentUser.role === "doctor" || currentUser.role === "admin" ? (
+              <Form.Select
+                value={patientUid}
+                onChange={(e) => {
+                  const selected = allPatients.find(p => p.id === e.target.value);
+                  setPatientUid(selected.id);
+                  setPatientName(selected.fullName);
+                }}
+              >
+                <option value="">Select a patient</option>
+                {allPatients.map((patient) => (
+                  <option key={patient.id} value={patient.id}>
+                    {patient.fullName}
+                  </option>
+                ))}
+              </Form.Select>
+            ) : (
+              <Form.Control
+                type="text"
+                value={patientName}
+                onChange={(e) => setPatientName(e.target.value)}
+                disabled
+              />
+            )}
           </Form.Group>
 
           <Form.Group>
@@ -113,7 +155,7 @@ export default function NewAppointmentModal({
             >
               {availableSlotsFiltered.map((slot, index) => (
                 <option key={index} value={moment(slot.start).format("YYYY-MM-DDTHH:mm")}>
-                  {moment(slot.start).format("YYYY-MM-DD HH:mm")}
+                  {moment(slot.start).format("DD/MM/YYYY h:mm A")}
                 </option>
               ))}
             </Form.Control>
